@@ -21,7 +21,7 @@ file = open(r'./decibel_range_train.json', 'r')
 json_dict_train = json.load(file)
 file.close()
 
-json_dict_test = {'current_file' : 'Anomalies' : []}
+json_dict_test = {'Anomalies' : []}
 
 max_db = json_dict_train['Max']
 min_db = json_dict_train['Min']
@@ -54,8 +54,8 @@ def write_to_file():
 
 def callback(input_data, frame_count, time_info, flags):
     global max_db, min_db, json_dict_test, anomaly_data,
-           pre_buffer, post_buffer, anomaly_done_count,
-           TWO_SECONDS, anomaly_flag, ONE_SECOND,
+           pre_buffer, post_buffer,
+           anomaly_done_count, TWO_SECONDS, anomaly_flag, ONE_SECOND,
            process_post_buffer
 
     sound = np.fromstring(input_data, dtype=np.int16)
