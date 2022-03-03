@@ -17,11 +17,11 @@ WAVE_OUTPUT_FILENAME = "output.wav"
 max_db = -sys.maxsize - 1
 min_db = sys.maxsize
 
-json_dict = {'Min' : min_db,'Max': max_db, 'Decibels' : []}
+json_dict = {'Min' : min_db,'Max': max_db}
 
 def write_to_file():
     global json_dict
-    with open('decibel_range_train.json', 'w') as outfile:
+    with open('../config/decibel_range_train.json', 'w') as outfile:
         json.dump(json_dict, outfile)
         outfile.close()
 
@@ -43,8 +43,6 @@ def callback(input_data, frame_count, time_info, flags):
         json_dict['Min'] = log
         print('New Min:', min_db)
 
-    json_dict['Decibels'].append(log)
-
     return input_data, pyaudio.paContinue
 
 
@@ -64,6 +62,7 @@ stream = pa.open(format=FORMAT,
                     stream_callback=callback,
                     frames_per_buffer=CHUNK)
 
+# TODO replace this with keyboard input
 time.sleep(10)
 
 write_to_file()
