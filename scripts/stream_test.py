@@ -30,30 +30,21 @@ file = open(r'../config/decibel_range_test.json', 'r')
 json_dict_test = json.load(file)
 file.close()
 
-current_file_num = json_dict_test['file_number']
+file_number = json_dict_test['file_number']
 
-# These buffers are used to store the anomaly wav file
+# Buffer used to store anomaly sound data
 anomaly_data = []
-pre_buffer = []
-post_buffer = []
 
-# Counts to satify the respective buffers record for the right amount of time
+# Only record Anomaly if the anomalous sound lasts atleast 2 seconds
 anomaly_done_count = 0
-post_buffer_done_count = 0
 
 # Number of frames to satify time duration
-THREE_SECONDS = 138
 TWO_SECONDS = 92
-ONE_SECOND = 46
-
-# Need an anomaly flag in order to keep track of state.
-anomaly_flag = False
 
 def callback(input_data, frame_count, time_info, flags):
-    global max_db, min_db, anomaly_data, pre_buffer, post_buffer,
-           anomaly_done_count, TWO_SECONDS, anomaly_flag, ONE_SECOND,
-           process_post_buffer, file_number, json_dict_test
+    global max_db, min_db, anomaly_data, anomaly_done_count, TWO_SECONDS, file_number, json_dict_test
 
+    # dB calculation
     sound = np.fromstring(input_data, dtype=np.int16)
     chunk = sound.astype('int64')
     sqr = chunk**2
@@ -61,52 +52,38 @@ def callback(input_data, frame_count, time_info, flags):
     sqrt = math.sqrt(mean)
     log = 20*math.log10(sqrt)
 
-    # Record 1 second of noise for the post buffer
-    if process_post_buffer:
-        post_buffer.append(input_data)
-        post_buffer_done_count += 1
-        if post_buffer_done_count == ONE_SECOND:
-            process_post_buffer = False
-
-            # Save to file
-            file_name = "anomaly_{}.wav".format(file_number)
-
-            with wave.open(file_name, "wb") as out_f:
-                out_f.setnchannels(1)
-                out_f.setsampwidth(2) # number of bytes
-                out_f.setframerate(48000)
-                out_f.writeframesraw(b''.join(pre_buffer).join(anomaly_data).join(post_buffer))
-
-            # incriment file_number and save
-            file_number += 1
-            with open('decibel_range_test.json', 'w') as outfile:
-                json.dump(json_dict_test, outfile)
-                outfile.close()
-
     # Anomaly has occured
-    elif log > max_db:
+    if log > max_db:
         print('ANOMALY: ', log)
         anomaly_data.append(input_data)
 
-        anomaly_flag = 1
-
-    elif anomaly_flag:
-        anomaly_data.append(input_data)
         anomaly_done_count += 1
 
-        if anomaly_done_count == TWO_SECONDS:
-            anomaly_flag = False
-            anomaly_done_count = 0
-            process_post_buffer = True
+    # Anomaly Done
+    elif anomaly_done_count > TWO_SECONDS:
 
-    # This is the case for adding to the pre_buffer
+        file_name = "../anomalies/anomaly_{}.wav".format(file_number)
+
+        with wave.open(file_name, "wb") as out_f:
+            out_f.setnchannels(1)
+            out_f.setsampwidth(2) # number of bytes
+            out_f.setframerate(48000)
+            out_f.writeframesraw(b''.join(anomaly_data))
+
+        # incriment file_number and save
+        file_number += 1
+        with open('../config/decibel_range_test.json', 'w') as outfile:
+            json_dict_test['file_number'] = file_number
+            json.dump(json_dict_test, outfile)
+            outfile.close()
+
+        anomaly_data.clear()
+        anomaly_done_count = 0
+
+    # No anomaly
     else:
-        if len(pre_buffer) >= (THREE_SECONDS * 1024):
-            del pre_buffer[:1024]
-
-        pre_buffer = input_data + pre_buffer
-
-
+        anomaly_done_count = 0
+        anomaly_data.clear()
 
     return input_data, pyaudio.paContinue
 
@@ -122,7 +99,6 @@ for x in range(0,pa.get_device_count()):
     if info["name"] == "pulse":
         chosen_device_index = info["index"]
 
-
 stream = pa.open(format=FORMAT,
                     channels=CHANNELS,
                     rate=RATE,
@@ -132,4 +108,6 @@ stream = pa.open(format=FORMAT,
                     frames_per_buffer=CHUNK)
 
 # Need to spin loop indefinately
-while(1)
+while True:
+    pass
+
