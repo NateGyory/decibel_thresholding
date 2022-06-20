@@ -6,6 +6,7 @@ import statistics
 import sys
 import json
 import time
+import requests
 
 import wave
 
@@ -40,6 +41,20 @@ anomaly_done_count = 0
 
 # Number of frames to satify time duration
 TWO_SECONDS = 92
+
+# Post request globals
+# TODO replace localhost with actual IP address
+URL = "localhost:5000/spot_deploy"
+
+# TODO
+# Place actual waypoint_id here for the deploy
+PAYLOAD = json.dumps({
+  "waypoint_id": 123
+})
+
+HEADERS = {
+  'Content-Type': 'application/json'
+}
 
 def callback(input_data, frame_count, time_info, flags):
     global max_db, min_db, anomaly_data, anomaly_done_count, TWO_SECONDS, file_number, json_dict_test
@@ -79,6 +94,12 @@ def callback(input_data, frame_count, time_info, flags):
 
         anomaly_data.clear()
         anomaly_done_count = 0
+
+        # Send spot to waypoint
+
+        response = requests.request("POST", URL, headers=HEADERS, data=PAYLOAD)
+
+        print(response.text)
 
     # No anomaly
     else:
