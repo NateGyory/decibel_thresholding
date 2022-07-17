@@ -35,6 +35,9 @@ file_number = json_dict_test['file_number']
 
 # Buffer used to store anomaly sound data
 anomaly_data = []
+anomaly_dict = {}
+after_data = {}
+after_written = True
 
 # Only record Anomaly if the anomalous sound lasts atleast 2 seconds
 anomaly_done_count = 0
@@ -57,7 +60,7 @@ HEADERS = {
 }
 
 def callback(input_data, frame_count, time_info, flags):
-    global max_db, min_db, anomaly_data, anomaly_done_count, TWO_SECONDS, file_number, json_dict_test
+    global max_db, min_db, anomaly_data, after_data, anomaly_done_count, after_done_count, TWO_SECONDS, file_number, json_dict_test, after_written, anomaly_dict
 
     # dB calculation
     sound = np.fromstring(input_data, dtype=np.int16)
@@ -66,6 +69,25 @@ def callback(input_data, frame_count, time_info, flags):
     mean = statistics.mean(sqr)
     sqrt = math.sqrt(mean)
     log = 20*math.log10(sqrt)
+
+    if not after_written and (file_number - 1) in after_data:
+        if len(after_data[file_number - 1]) < TWO_SECONDS:
+            after_data[file_number - 1].append(input_data)
+        else:
+            file_name = "../anomalies/anomaly_{}_after.wav".format(file_number-1)
+            print(len(anomaly_dict[file_number-1]))
+            anomaly_dict[file_number -1].extend(after_data[file_number-1])
+            print(len(anomaly_dict[file_number-1]))
+            with wave.open(file_name, "wb") as out_f:
+                out_f.setnchannels(1)
+                out_f.setsampwidth(2) # number of bytes
+                out_f.setframerate(48000)
+                out_f.writeframesraw(b''.join(anomaly_dict[file_number-1]))
+
+            after_data[file_number-1].clear()
+            anomaly_dict[file_number-1].clear()
+            after_written = True
+
 
     # Anomaly has occured
     if log > max_db:
@@ -85,6 +107,10 @@ def callback(input_data, frame_count, time_info, flags):
             out_f.setframerate(48000)
             out_f.writeframesraw(b''.join(anomaly_data))
 
+        anomaly_dict[file_number] = anomaly_data.copy()
+        after_data[file_number] = []
+        after_written = False
+
         # incriment file_number and save
         file_number += 1
         with open('../config/decibel_range_test.json', 'w') as outfile:
@@ -97,9 +123,9 @@ def callback(input_data, frame_count, time_info, flags):
 
         # Send spot to waypoint
 
-        response = requests.request("POST", URL, headers=HEADERS, data=PAYLOAD)
+        #response = requests.request("POST", URL, headers=HEADERS, data=PAYLOAD)
 
-        print(response.text)
+        #print(response.text)
 
     # No anomaly
     else:
