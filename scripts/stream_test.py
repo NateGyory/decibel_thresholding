@@ -6,7 +6,7 @@ import statistics
 import sys
 import json
 import time
-import requests
+#import requests
 
 import wave
 
@@ -35,9 +35,12 @@ file_number = json_dict_test['file_number']
 
 # Buffer used to store anomaly sound data
 anomaly_data = []
+pre_buffer = []
+cached_pre_buffer = []
 anomaly_dict = {}
 after_data = {}
 after_written = True
+cached_pre_buffer_flag = False
 
 # Only record Anomaly if the anomalous sound lasts atleast 2 seconds
 anomaly_done_count = 0
@@ -60,7 +63,7 @@ HEADERS = {
 }
 
 def callback(input_data, frame_count, time_info, flags):
-    global max_db, min_db, anomaly_data, after_data, anomaly_done_count, after_done_count, TWO_SECONDS, file_number, json_dict_test, after_written, anomaly_dict
+    global max_db, min_db, anomaly_data, after_data, anomaly_done_count, after_done_count, TWO_SECONDS, file_number, json_dict_test, after_written, anomaly_dict, pre_buffer, cached_pre_buffer, cached_pre_buffer_flag
 
     # dB calculation
     sound = np.fromstring(input_data, dtype=np.int16)
@@ -73,26 +76,32 @@ def callback(input_data, frame_count, time_info, flags):
     if not after_written and (file_number - 1) in after_data:
         if len(after_data[file_number - 1]) < TWO_SECONDS:
             after_data[file_number - 1].append(input_data)
+            cached_pre_buffer_flag = True
         else:
-            file_name = "../anomalies/anomaly_{}_after.wav".format(file_number-1)
-            print(len(anomaly_dict[file_number-1]))
-            anomaly_dict[file_number -1].extend(after_data[file_number-1])
-            print(len(anomaly_dict[file_number-1]))
+            file_name = "../anomalies/anomaly_{}_padded.wav".format(file_number-1)
+            anomaly_dict[file_number-1].extend(after_data[file_number-1])
+            cached_pre_buffer.extend(anomaly_dict[file_number-1])
             with wave.open(file_name, "wb") as out_f:
                 out_f.setnchannels(1)
                 out_f.setsampwidth(2) # number of bytes
                 out_f.setframerate(48000)
-                out_f.writeframesraw(b''.join(anomaly_dict[file_number-1]))
+                out_f.writeframesraw(b''.join(cached_pre_buffer))
 
             after_data[file_number-1].clear()
             anomaly_dict[file_number-1].clear()
+            pre_buffer.clear()
             after_written = True
+            cached_pre_buffer_flag = False
 
 
     # Anomaly has occured
     if log > max_db:
         print('ANOMALY: ', log)
         anomaly_data.append(input_data)
+
+        if not cached_pre_buffer_flag:
+            cached_pre_buffer = pre_buffer.copy()
+            cached_pre_buffer_flag = True
 
         anomaly_done_count += 1
 
@@ -131,6 +140,15 @@ def callback(input_data, frame_count, time_info, flags):
     else:
         anomaly_done_count = 0
         anomaly_data.clear()
+        cached_pre_buffer_flag = False
+
+    # Populate pre_buffer for up to two seconds
+    if len(pre_buffer) == 92:
+        pre_buffer.pop(0)
+        pre_buffer.append(input_data)
+    else:
+        pre_buffer.append(input_data)
+
 
     return input_data, pyaudio.paContinue
 
