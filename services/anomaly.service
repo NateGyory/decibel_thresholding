@@ -1,0 +1,10 @@
+[Unit]
+Description=Anomaly Service
+
+[Service]
+ExecStart=/opt/anomaly/run.sh
+Restart=on-failure
+User=nate
+
+[Install]
+WantedBy=multi-user.target
