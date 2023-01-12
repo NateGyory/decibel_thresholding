@@ -6,7 +6,7 @@ import statistics
 import sys
 import json
 import time
-#import requests
+import requests
 
 import wave
 
@@ -50,16 +50,12 @@ TWO_SECONDS = 92
 
 # Post request globals
 # TODO replace localhost with actual IP address
-URL = "localhost:5000/spot_deploy"
+URL = "http://localhost:5000/spot_deploy"
 
 # TODO
 # Place actual waypoint_id here for the deploy
-PAYLOAD = json.dumps({
-  "waypoint_id": 123
-})
-
-HEADERS = {
-  'Content-Type': 'application/json'
+PAYLOAD = {
+  "waypoint_id": "hedged-whale-twQBHx1YyDBR2tbLzRtVlw=="
 }
 
 def callback(input_data, frame_count, time_info, flags):
@@ -132,9 +128,9 @@ def callback(input_data, frame_count, time_info, flags):
 
         # Send spot to waypoint
 
-        #response = requests.request("POST", URL, headers=HEADERS, data=PAYLOAD)
+        response = requests.post(URL, json=PAYLOAD)
 
-        #print(response.text)
+        print(response.text)
 
     # No anomaly
     else:
